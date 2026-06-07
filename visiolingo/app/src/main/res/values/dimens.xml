@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="ButtonWidth">250dp</dimen>
+    <dimen name="ButtonHeight">40dp</dimen>
+    <dimen name="ButtonMargin">16dp</dimen>
+</resources>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#000000"
+    android:keepScreenOn="true"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/titleView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textColor="#6699ff"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/statusView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/status_idle"
+        android:textColor="#ffff00"
+        android:textSize="16sp" />
+
+    <ScrollView
+        android:id="@+id/transcriptScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/transcriptView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/transcript_hint"
+            android:textColor="#ffffff"
+            android:textSize="15sp"
+            android:lineSpacingMultiplier="1.1" />
+
+    </ScrollView>
+
+</LinearLayout>
