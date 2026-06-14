@@ -1,46 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#000000"
-    android:keepScreenOn="true"
-    android:padding="12dp">
+    android:keepScreenOn="true">
 
-    <TextView
-        android:id="@+id/titleView"
+    <!-- HUD minimal : drapeau + mot-cle + score -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="#6699ff"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/statusView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="@string/status_idle"
-        android:textColor="#ffff00"
-        android:textSize="16sp" />
-
-    <ScrollView
-        android:id="@+id/transcriptScroll"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="8dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="12dp">
 
         <TextView
-            android:id="@+id/transcriptView"
-            android:layout_width="match_parent"
+            android:id="@+id/hintView"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/transcript_hint"
-            android:textColor="#ffffff"
-            android:textSize="15sp"
-            android:lineSpacingMultiplier="1.1" />
+            android:textColor="#888888"
+            android:textSize="16sp" />
 
-    </ScrollView>
+        <TextView
+            android:id="@+id/flagView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="56sp"
+            android:visibility="gone" />
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/keywordView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#FFFFFF"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/contentScoreView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/scoreView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Overlay plein ecran affiche en mode deconnecte -->
+    <LinearLayout
+        android:id="@+id/pauseOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/pauseIcon"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/status_disconnected"
+            android:src="@drawable/ic_pause_big" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp"
+            android:text="@string/status_disconnected"
+            android:textColor="#FF1744"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -21,15 +21,10 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Capture d'images de la camera des lunettes via CameraX, SANS apercu a l'ecran. La camera
- * reste liee au cycle de vie de l'Activity ; {@link #capture} prend une photo a la demande,
- * la reduit (cote max + JPEG) et renvoie les octets sur un thread de fond.
- */
 class CameraController {
 
     private static final String TAG = "VisioLingo";
-    private static final int MAX_SIDE = 768;     // cote max de l'image envoyee a l'API
+    private static final int MAX_SIDE = 768; // longeur max de l'image envoyee a l'API
     private static final int JPEG_QUALITY = 75;
 
     interface FrameCallback {
@@ -46,7 +41,6 @@ class CameraController {
         this.lifecycleOwner = lifecycleOwner;
     }
 
-    /** Lie la camera (use case ImageCapture seul, pas de Preview) au cycle de vie. */
     void start() {
         final ListenableFuture<ProcessCameraProvider> future =
                 ProcessCameraProvider.getInstance(context);
@@ -66,7 +60,7 @@ class CameraController {
         }, ContextCompat.getMainExecutor(context));
     }
 
-    /** Prend une image maintenant ; le callback recoit le JPEG reduit (thread de fond). */
+    // capture une photo (sans la renvoyer tout de suite, le temps de certains traitements)
     void capture(final FrameCallback cb) {
         final ImageCapture ic = imageCapture;
         if (ic == null) {
@@ -94,9 +88,10 @@ class CameraController {
     }
 
     void stop() {
-        exec.shutdown(); // la camera est deliee automatiquement avec le cycle de vie
+        exec.shutdown();
     }
 
+    // nécessaire pour la rapidité de l'envoi
     private static byte[] toScaledJpeg(ImageProxy image) {
         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
         byte[] raw = new byte[buffer.remaining()];

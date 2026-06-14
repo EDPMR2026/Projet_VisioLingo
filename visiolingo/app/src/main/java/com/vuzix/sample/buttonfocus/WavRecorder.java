@@ -6,13 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-/**
- * Ecrit un flux PCM dans un fichier WAV (PCM 16 bits) au fil de l'eau. L'en-tete est ecrit en
- * placeholder au demarrage puis corrige (tailles) a l'arret.
- *
- * Toutes les methodes doivent etre appelees depuis un seul et meme thread (l'executeur
- * d'enregistrement de {@link RealtimeClient}).
- */
+// optionnel, pour les démos
 class WavRecorder {
 
     private static final String TAG = "VisioLingo";
@@ -55,8 +49,6 @@ class WavRecorder {
         }
     }
 
-    /** Met a jour l'en-tete avec la taille actuelle pour que le fichier reste lisible en cours
-     *  d'enregistrement, puis se repositionne en fin de fichier pour continuer a ecrire. */
     void flush() {
         if (raf == null || !started || stopped) return;
         try {

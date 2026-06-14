@@ -50,32 +50,29 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-/**
- * Client WebRTC vers l'API OpenAI Realtime (modele audio natif gpt-realtime-2).
- *
- * Flux :
- *  1. Construit une PeerConnection avec une piste audio locale (micro) et un data channel
- *     "oai-events".
- *  2. Cree une offre SDP, attend la fin du gathering ICE, puis POST l'offre en multipart vers
- *     /v1/realtime/calls (parties "sdp" + "session"). La reponse est la SDP answer.
- *  3. A l'ouverture du data channel, envoie un session.update (instructions VisioLingo, VAD,
- *     transcription) et ecoute les events (transcripts / erreurs).
- *
- * L'audio de reponse de GPT est joue automatiquement par le module audio WebRTC sur les
- * haut-parleurs des lunettes ; le micro est capture automatiquement.
- */
+// Client WebRTC vers l'API OpenAI Realtime (modele audio natif gpt-realtime-2).
+//Flux :
+//   1. Construit une PeerConnection avec une piste audio locale (micro) et un data channel
+//      "oai-events".
+//   2. Cree une offre SDP, attend la fin du gathering ICE, puis POST l'offre en multipart vers
+//      /v1/realtime/calls (parties "sdp" + "session"). La reponse est la SDP answer.
+//   3. A l'ouverture du data channel, envoie un session.update (instructions VisioLingo, VAD,
+//      transcription) et ecoute les events (transcripts / erreurs).
+//
+// L'audio de reponse de GPT est joue automatiquement par le module audio WebRTC sur les
+// haut-parleurs des lunettes ; le micro est capture automatiquement.
+
 public class RealtimeClient {
 
     private static final String TAG = "VisioLingo";
 
     // === Configuration ======================================================================
-    // DEV ONLY : cle en clair dans l'APK. Ne pas distribuer. A migrer vers un ephemeral token
-    // genere par un backend (POST /v1/realtime/client_secrets) avant toute diffusion.
+    // soluton temporaire : mettre la clé API en clair...
     private static final String API_KEY =
             "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";
 
-    private static final String CALLS_URL = "https://api.openai.com/v1/realtime/calls";
-    private static final String MODEL = "gpt-realtime-2";
+    private static final String CALLS_URL = "https://api.openai.com/v1/realtime/calls"; // endpoint de l'API
+    private static final String MODEL = "gpt-realtime-2"; // nom du modèle
     private static final String VOICE = "marin";
     private static final String DATA_CHANNEL_LABEL = "oai-events";
     private static final long ICE_GATHERING_TIMEOUT_MS = 3000;
@@ -87,18 +84,39 @@ public class RealtimeClient {
             + "Sers-toi de cette image pour juger si sa description correspond bien a l'objet, "
             + "evaluer sa prononciation et son accent, corriger les erreurs et proposer une "
             + "formulation plus naturelle. Si l'objet ne correspond pas a ce qu'il dit, dis-lui "
-            + "gentiment le bon mot. Reponds TOUJOURS dans la meme langue que l'utilisateur, de "
-            + "facon breve et encourageante (1 a 3 phrases). Si l'image est floue ou si tu n'as "
-            + "pas compris, demande gentiment de repeter.";
+            + "gentiment le bon mot. "
+            + "REGLE DE LANGUE STRICTE : detecte la langue effectivement parlee par l'utilisateur "
+            + "dans son audio, et reponds EXCLUSIVEMENT dans cette langue-la, quoi qu'il arrive. "
+            + "N'utilise jamais une autre langue par defaut : si l'utilisateur parle anglais, "
+            + "reponds en anglais ; s'il parle espagnol, reponds en espagnol ; etc. "
+            + "SOIS EXIGEANT ET STRICT dans ton evaluation, sans complaisance : juge finement la "
+            + "prononciation et l'accent (voyelles, intonation, accent tonique, liaisons, sons "
+            + "specifiques a la langue) et signale clairement chaque defaut a l'oral, meme mineur. "
+            + "Reste bref et constructif (1 a 3 phrases), mais ne survends pas : ne felicite que "
+            + "ce qui est reellement bon. Si l'image est floue ou si tu n'as "
+            + "pas compris, demande gentiment de repeter. "
+            + "Lorsque l'on te demande d'appeler la fonction report_assessment, renseigne "
+            + ": keyword (le mot principal designant l'objet, dans la langue parlee par "
+            + "l'utilisateur), pronunciation_score (entier de 0 a 10 evaluant la prononciation et "
+            + "l'accent), content_score (entier de 0 a 10 evaluant la justesse et la pertinence de "
+            + "la description par rapport a l'objet reellement vu sur l'image). "
+            + "NOTE AVEC EXIGENCE, selon le bareme : 9-10 = niveau quasi natif/parfait, "
+            + "7-8 = bon mais defauts perceptibles, 5-6 = comprehensible avec erreurs nettes, "
+            + "3-4 = difficile a comprendre, 0-2 = incorrect. Reserve 9-10 a l'excellence reelle "
+            + "et n'hesite pas a mettre des notes basses quand c'est justifie. Enfin flag_country_code "
+            + "(code pays ISO 3166-1 alpha-2 en majuscules le plus representatif de la langue "
+            + "parlee, ex : FR, GB, ES, DE, IT, JP).";
 
     // === Callback vers l'UI =================================================================
+    // est implémenté par MainActivity
     public interface Listener {
         void onStatus(String status);
         void onUserTranscript(String text);
         void onAssistantTranscript(String text);
         void onError(String message);
-        /** L'utilisateur vient de commencer a parler : moment ou l'on capture/envoie une image. */
         void onUserSpeechStarted();
+        void onAssessment(String keyword, int pronunciationScore, int contentScore,
+                          String flagCountryCode);
     }
 
     private final Context appContext;
@@ -125,6 +143,7 @@ public class RealtimeClient {
     private final ExecutorService recorderExec = Executors.newSingleThreadExecutor();
     private volatile boolean closed = false;
     private boolean statsStarted = false;
+    private volatile boolean pendingReport = false;
 
     /** Logue toutes les 2 s le niveau du micro local et les octets audio envoyes a OpenAI. */
     private final Runnable statsLogger = new Runnable() {
@@ -235,10 +254,10 @@ public class RealtimeClient {
 
     // === WebRTC factory =====================================================================
 
-    /**
-     * Passe l'appareil en mode communication (type VoIP) pour obtenir la priorite micro face a
-     * l'assistant vocal always-on des lunettes Vuzix, et route la sortie sur le haut-parleur.
-     */
+    //
+    // Passe l'appareil en mode communication (type VoIP) pour obtenir la priorite micro face a
+    // l'assistant vocal always-on des lunettes Vuzix, et route la sortie sur le haut-parleur.
+    //
     private void configureAudioForCall() {
         try {
             audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
@@ -438,7 +457,9 @@ public class RealtimeClient {
                     .put("type", "realtime")
                     .put("instructions", INSTRUCTIONS)
                     .put("output_modalities", new JSONArray().put("audio"))
-                    .put("audio", audio);
+                    .put("audio", audio)
+                    .put("tools", buildTools())
+                    .put("tool_choice", "none");
             JSONObject event = new JSONObject()
                     .put("type", "session.update")
                     .put("session", sessionObj);
@@ -449,17 +470,81 @@ public class RealtimeClient {
         }
     }
 
+    // fonction report_assessment, la même que promptée au modèle
+    private JSONArray buildTools() throws Exception {
+        JSONObject props = new JSONObject()
+                .put("keyword", new JSONObject()
+                        .put("type", "string")
+                        .put("description", "Mot principal designant l'objet, dans la langue parlee."))
+                .put("pronunciation_score", new JSONObject()
+                        .put("type", "integer")
+                        .put("minimum", 0)
+                        .put("maximum", 10)
+                        .put("description", "Note de prononciation/accent de 0 a 10."))
+                .put("content_score", new JSONObject()
+                        .put("type", "integer")
+                        .put("minimum", 0)
+                        .put("maximum", 10)
+                        .put("description", "Note de justesse/pertinence de la description de 0 a 10."))
+                .put("flag_country_code", new JSONObject()
+                        .put("type", "string")
+                        .put("description", "Code pays ISO 3166-1 alpha-2 (majuscules) de la langue parlee."));
+        JSONObject params = new JSONObject()
+                .put("type", "object")
+                .put("properties", props)
+                .put("required", new JSONArray()
+                        .put("keyword").put("pronunciation_score")
+                        .put("content_score").put("flag_country_code"));
+        JSONObject tool = new JSONObject()
+                .put("type", "function")
+                .put("name", "report_assessment")
+                .put("description", "Renvoie une evaluation structuree de la description de l'utilisateur.")
+                .put("parameters", params);
+        return new JSONArray().put(tool);
+    }
+
+    private void requestAssessment() {
+        try {
+            JSONObject toolChoice = new JSONObject()
+                    .put("type", "function")
+                    .put("name", "report_assessment");
+            JSONObject response = new JSONObject()
+                    .put("output_modalities", new JSONArray().put("text"))
+                    .put("tool_choice", toolChoice);
+            JSONObject event = new JSONObject()
+                    .put("type", "response.create")
+                    .put("response", response);
+            sendEvent(event);
+            Log.d(TAG, "response.create (report_assessment force)");
+        } catch (Exception e) {
+            notifyError("requestAssessment: " + e.getMessage());
+        }
+    }
+
+    private void sendFunctionCallOutput(String callId) {
+        if (callId == null || callId.isEmpty()) return;
+        try {
+            JSONObject item = new JSONObject()
+                    .put("type", "function_call_output")
+                    .put("call_id", callId)
+                    .put("output", "ok");
+            JSONObject event = new JSONObject()
+                    .put("type", "conversation.item.create")
+                    .put("item", item);
+            sendEvent(event);
+        } catch (Exception e) {
+            Log.w(TAG, "function_call_output", e);
+        }
+    }
+
     private void sendEvent(JSONObject event) {
         if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) return;
         byte[] bytes = event.toString().getBytes(StandardCharsets.UTF_8);
         dataChannel.send(new DataChannel.Buffer(ByteBuffer.wrap(bytes), false));
     }
 
-    /**
-     * Ajoute une image JPEG au contexte de la conversation (event conversation.item.create avec
-     * un contenu input_image en data URL base64). A appeler quand l'utilisateur commence a
-     * parler, pour que GPT « voie » l'objet avant de repondre. Sans effet si non connecte.
-     */
+    // Ajoute une image JPEG au contexte de la conversation (event conversation.item.create avec
+    // un contenu input_image en data URL base64)
     public void sendImage(byte[] jpeg) {
         if (jpeg == null || jpeg.length == 0) return;
         if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
@@ -504,6 +589,7 @@ public class RealtimeClient {
                     break;
                 case "input_audio_buffer.speech_stopped":
                     notifyStatus("Connecte — a l'ecoute");
+                    pendingReport = true; // ce tour devra produire une evaluation
                     break;
                 case "conversation.item.input_audio_transcription.completed": {
                     String t = event.optString("transcript", "").trim();
@@ -513,11 +599,25 @@ public class RealtimeClient {
                 case "response.output_audio_transcript.delta":
                     assistantBuffer.append(event.optString("delta", ""));
                     break;
-                case "response.output_audio_transcript.done":
+                case "response.output_audio_transcript.done": {
+                    String full = assistantBuffer.toString().trim();
+                    assistantBuffer.setLength(0);
+                    if (!full.isEmpty()) notifyAssistant(full);
+                    break;
+                }
                 case "response.done": {
                     String full = assistantBuffer.toString().trim();
                     assistantBuffer.setLength(0);
                     if (!full.isEmpty()) notifyAssistant(full);
+                    // La reponse audio du tour est finie -> on demande l'evaluation structuree.
+                    if (pendingReport) {
+                        pendingReport = false;
+                        requestAssessment();
+                    }
+                    break;
+                }
+                case "response.function_call_arguments.done": {
+                    handleFunctionCall(event);
                     break;
                 }
                 case "error": {
@@ -531,6 +631,23 @@ public class RealtimeClient {
             }
         } catch (Exception e) {
             Log.w(TAG, "Event illisible : " + json, e);
+        }
+    }
+
+    /** Parse les arguments JSON de report_assessment et remonte l'evaluation a l'UI. */
+    private void handleFunctionCall(JSONObject event) {
+        String args = event.optString("arguments", "");
+        if (args.isEmpty()) return;
+        try {
+            JSONObject a = new JSONObject(args);
+            String keyword = a.optString("keyword", "").trim();
+            int score = a.optInt("pronunciation_score", -1);
+            int contentScore = a.optInt("content_score", -1);
+            String flag = a.optString("flag_country_code", "").trim().toUpperCase(Locale.US);
+            notifyAssessment(keyword, score, contentScore, flag);
+            sendFunctionCallOutput(event.optString("call_id", ""));
+        } catch (Exception e) {
+            Log.w(TAG, "report_assessment illisible : " + args, e);
         }
     }
 
@@ -621,6 +738,9 @@ public class RealtimeClient {
     private void notifyStatus(String s) { mainHandler.post(() -> listener.onStatus(s)); }
     private void notifyUser(String s) { mainHandler.post(() -> listener.onUserTranscript(s)); }
     private void notifyAssistant(String s) { mainHandler.post(() -> listener.onAssistantTranscript(s)); }
+    private void notifyAssessment(String keyword, int score, int contentScore, String flag) {
+        mainHandler.post(() -> listener.onAssessment(keyword, score, contentScore, flag));
+    }
     private void notifyError(String s) {
         Log.e(TAG, s);
         mainHandler.post(() -> listener.onError(s));

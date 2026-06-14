@@ -3,4 +3,5 @@
     <string name="status_idle">Initialisation…</string>
     <string name="status_permission_needed">Permission micro requise</string>
     <string name="transcript_hint">Parlez pour décrire un objet…</string>
+    <string name="status_disconnected">EN PAUSE</string>
 </resources>
