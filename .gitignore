@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+*.iws
+*.ipr
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/

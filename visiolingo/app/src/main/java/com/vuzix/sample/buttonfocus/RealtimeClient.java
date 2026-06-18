@@ -67,9 +67,8 @@ public class RealtimeClient {
     private static final String TAG = "VisioLingo";
 
     // === Configuration ======================================================================
-    // soluton temporaire : mettre la clé API en clair...
-    private static final String API_KEY =
-            "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";
+    // Clé chargée depuis local.properties (NON versionné) via BuildConfig — voir app/build.gradle.
+    private static final String API_KEY = BuildConfig.OPENAI_API_KEY;
 
     private static final String CALLS_URL = "https://api.openai.com/v1/realtime/calls"; // endpoint de l'API
     private static final String MODEL = "gpt-realtime-2"; // nom du modèle

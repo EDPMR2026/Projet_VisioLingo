@@ -2,6 +2,19 @@ plugins {
     id 'com.android.application'
 }
 
+// Clé API OpenAI chargée depuis local.properties (NON versionné) ou la variable
+// d'environnement OPENAI_API_KEY. Ne jamais committer la clé en clair.
+def openaiApiKey = ""
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    def localProps = new Properties()
+    localPropsFile.withInputStream { localProps.load(it) }
+    openaiApiKey = localProps.getProperty("OPENAI_API_KEY", "")
+}
+if (!openaiApiKey) {
+    openaiApiKey = System.getenv("OPENAI_API_KEY") ?: ""
+}
+
 android {
     defaultConfig {
         applicationId 'com.vuzix.sample.buttonfocus'
@@ -10,6 +23,11 @@ android {
         targetSdk 35
         versionCode 1
         versionName "1.0"
+
+        buildConfigField "String", "OPENAI_API_KEY", "\"${openaiApiKey}\""
+    }
+    buildFeatures {
+        buildConfig true
     }
     buildTypes {
         release {
