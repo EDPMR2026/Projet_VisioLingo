@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -75,25 +74,28 @@ public class RealtimeClient {
     private static final String VOICE = "marin";
     private static final String DATA_CHANNEL_LABEL = "oai-events";
     private static final long ICE_GATHERING_TIMEOUT_MS = 3000;
+    // Passe a true pour loguer le niveau micro / octets envoyes toutes les 2 s (debug hardware).
+    private static final boolean DEBUG_STATS = false;
 
     private static final String INSTRUCTIONS =
-            "Tu es VisioLingo, un coach linguistique vocal. L'utilisateur porte des lunettes a "
-            + "camera : il regarde un objet et le decrit a voix haute dans la langue de son choix. "
+            "Tu es VisioLingo, un coach linguistique vocal. L'utilisateur porte des lunettes de realite augmentee "
+            + "qui ont une camera et un micro : il regarde un objet et le decrit a voix haute dans la langue de son choix. "
             + "Juste avant chaque prise de parole, tu recois une image de ce qu'il regarde. "
             + "Sers-toi de cette image pour juger si sa description correspond bien a l'objet, "
             + "evaluer sa prononciation et son accent, corriger les erreurs et proposer une "
-            + "formulation plus naturelle. Si l'objet ne correspond pas a ce qu'il dit, dis-lui "
-            + "gentiment le bon mot. "
-            + "REGLE DE LANGUE STRICTE : detecte la langue effectivement parlee par l'utilisateur "
-            + "dans son audio, et reponds EXCLUSIVEMENT dans cette langue-la, quoi qu'il arrive. "
+            + "formulation plus naturelle si c'est nécessaire. Si l'objet ne correspond pas a "
+            + "ce qu'il dit, dis-lui le bon mot. "
+            + "REGLE DE LANGUE STRICTE : detecte la langue parlee par l'utilisateur "
+            + "dans son audio, et reponds EXCLUSIVEMENT dans cette langue la, quoi qu'il arrive. "
             + "N'utilise jamais une autre langue par defaut : si l'utilisateur parle anglais, "
             + "reponds en anglais ; s'il parle espagnol, reponds en espagnol ; etc. "
             + "SOIS EXIGEANT ET STRICT dans ton evaluation, sans complaisance : juge finement la "
             + "prononciation et l'accent (voyelles, intonation, accent tonique, liaisons, sons "
-            + "specifiques a la langue) et signale clairement chaque defaut a l'oral, meme mineur. "
+            + "specifiques a la langue) et signale clairement chaque defaut a l'oral. "
+            + " si toutefois tu sens que l'utilisateur parle très bien la langue, pas besoin de le corriger pour rien! "
             + "Reste bref et constructif (1 a 3 phrases), mais ne survends pas : ne felicite que "
             + "ce qui est reellement bon. Si l'image est floue ou si tu n'as "
-            + "pas compris, demande gentiment de repeter. "
+            + "pas compris, demande de repeter. "
             + "Lorsque l'on te demande d'appeler la fonction report_assessment, renseigne "
             + ": keyword (le mot principal designant l'objet, dans la langue parlee par "
             + "l'utilisateur), pronunciation_score (entier de 0 a 10 evaluant la prononciation et "
@@ -308,7 +310,6 @@ public class RealtimeClient {
         };
         remoteTrack.addSink(remoteSink);
         Log.d(TAG, "Enregistrement voix GPT -> " + rec.getFile().getAbsolutePath());
-        notifyAssistant("🎙️ Enregistrement démo : " + name);
         mainHandler.postDelayed(wavFlusher, 3000);
     }
 
@@ -672,7 +673,8 @@ public class RealtimeClient {
         @Override
         public void onConnectionChange(PeerConnection.PeerConnectionState state) {
             Log.d(TAG, "PC state: " + state);
-            if (state == PeerConnection.PeerConnectionState.CONNECTED && !statsStarted) {
+            if (DEBUG_STATS && state == PeerConnection.PeerConnectionState.CONNECTED
+                    && !statsStarted) {
                 statsStarted = true;
                 mainHandler.post(statsLogger);
             }
