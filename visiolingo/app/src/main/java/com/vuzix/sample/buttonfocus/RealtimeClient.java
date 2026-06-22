@@ -74,6 +74,8 @@ public class RealtimeClient {
     private static final String VOICE = "marin";
     private static final String DATA_CHANNEL_LABEL = "oai-events";
     private static final long ICE_GATHERING_TIMEOUT_MS = 3000;
+    // Passe a true pour loguer le niveau micro / octets envoyes toutes les 2 s (debug hardware).
+    private static final boolean DEBUG_STATS = false;
 
     private static final String INSTRUCTIONS =
             "Tu es VisioLingo, un coach linguistique vocal. L'utilisateur porte des lunettes a "
@@ -670,7 +672,8 @@ public class RealtimeClient {
         @Override
         public void onConnectionChange(PeerConnection.PeerConnectionState state) {
             Log.d(TAG, "PC state: " + state);
-            if (state == PeerConnection.PeerConnectionState.CONNECTED && !statsStarted) {
+            if (DEBUG_STATS && state == PeerConnection.PeerConnectionState.CONNECTED
+                    && !statsStarted) {
                 statsStarted = true;
                 mainHandler.post(statsLogger);
             }
