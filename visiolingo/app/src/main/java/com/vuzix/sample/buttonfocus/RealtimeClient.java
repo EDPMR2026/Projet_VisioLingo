@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -308,7 +307,6 @@ public class RealtimeClient {
         };
         remoteTrack.addSink(remoteSink);
         Log.d(TAG, "Enregistrement voix GPT -> " + rec.getFile().getAbsolutePath());
-        notifyAssistant("🎙️ Enregistrement démo : " + name);
         mainHandler.postDelayed(wavFlusher, 3000);
     }
 
