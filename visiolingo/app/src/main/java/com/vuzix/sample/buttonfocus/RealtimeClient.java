@@ -67,7 +67,7 @@ public class RealtimeClient {
     private static final String TAG = "VisioLingo";
 
     // === Configuration ======================================================================
-    // Clé chargée depuis local.properties (NON versionné) via BuildConfig — voir app/build.gradle.
+    // Clé chargée depuis local.properties (fichier en git ignore) via BuildConfig
     private static final String API_KEY = BuildConfig.OPENAI_API_KEY;
 
     private static final String CALLS_URL = "https://api.openai.com/v1/realtime/calls"; // endpoint de l'API
