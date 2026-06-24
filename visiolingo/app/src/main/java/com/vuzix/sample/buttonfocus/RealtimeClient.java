@@ -66,7 +66,7 @@ public class RealtimeClient {
     private static final String TAG = "VisioLingo";
 
     // === Configuration ======================================================================
-    // Clé chargée depuis local.properties (fichier en git ignore) via BuildConfig
+    // clé chargée depuis local.properties (fichier en git ignore) via BuildConfig
     private static final String API_KEY = BuildConfig.OPENAI_API_KEY;
 
     private static final String CALLS_URL = "https://api.openai.com/v1/realtime/calls"; // endpoint de l'API
@@ -146,7 +146,6 @@ public class RealtimeClient {
     private boolean statsStarted = false;
     private volatile boolean pendingReport = false;
 
-    /** Logue toutes les 2 s le niveau du micro local et les octets audio envoyes a OpenAI. */
     private final Runnable statsLogger = new Runnable() {
         @Override
         public void run() {
@@ -197,19 +196,17 @@ public class RealtimeClient {
             return;
         }
 
-        // Piste audio locale (micro). En Unified Plan, addTrack cree un transceiver sendrecv,
-        // donc on recevra aussi l'audio de GPT.
+        // piste audio locale (micro)
         MediaConstraints audioConstraints = new MediaConstraints();
         audioSource = factory.createAudioSource(audioConstraints);
         localAudioTrack = factory.createAudioTrack("audio0", audioSource);
         peerConnection.addTrack(localAudioTrack, Collections.singletonList("stream0"));
 
-        // Data channel pour les events JSON OpenAI.
+        // data channel pour les events JSON OpenAI.
         DataChannel.Init dcInit = new DataChannel.Init();
         dataChannel = peerConnection.createDataChannel(DATA_CHANNEL_LABEL, dcInit);
         dataChannel.registerObserver(dcObserver);
 
-        // Cree l'offre puis fixe la description locale ; le POST partira a la fin du gathering ICE.
         peerConnection.createOffer(new SimpleSdpObserver("createOffer") {
             @Override
             public void onCreateSuccess(SessionDescription sdp) {
@@ -253,11 +250,10 @@ public class RealtimeClient {
         httpExecutor.shutdownNow();
     }
 
-    // === WebRTC factory =====================================================================
+    // === WebRTC  =====================================================================
 
     //
-    // Passe l'appareil en mode communication (type VoIP) pour obtenir la priorite micro face a
-    // l'assistant vocal always-on des lunettes Vuzix, et route la sortie sur le haut-parleur.
+    // passer l'appareil en mode communication pour obtenir la priorite micro face a Bonjour Vuzix
     //
     private void configureAudioForCall() {
         try {
@@ -282,11 +278,7 @@ public class RealtimeClient {
         } catch (Exception ignored) {}
     }
 
-    /**
-     * Demarre l'enregistrement de la voix de GPT (piste audio distante) dans un fichier WAV,
-     * pour reutilisation au montage video. Fichier dans le dossier externe de l'appli :
-     * /sdcard/Android/data/<pkg>/files/visiolingo_gpt_<horodatage>.wav (recuperable via adb pull).
-     */
+    // pour les démos, on enregistre dans un .wav la réponse de GPT
     private void startRecording(AudioTrack remoteTrack) {
         if (wavRecorder != null) return; // une seule session d'enregistrement
         File dir = appContext.getExternalFilesDir(null);
@@ -313,7 +305,6 @@ public class RealtimeClient {
         mainHandler.postDelayed(wavFlusher, 3000);
     }
 
-    /** Reecrit periodiquement l'en-tete WAV pour que le fichier reste lisible meme sans fermer. */
     private final Runnable wavFlusher = new Runnable() {
         @Override
         public void run() {
@@ -332,8 +323,6 @@ public class RealtimeClient {
             factoryInitialized = true;
         }
         audioDeviceModule = JavaAudioDeviceModule.builder(appContext)
-                // Micro brut + AEC/NS materiel desactives : sur le M4000 en MODE_NORMAL, le
-                // traitement VOICE_COMMUNICATION + AEC HW semblait annuler l'entree micro.
                 .setAudioSource(MediaRecorder.AudioSource.MIC)
                 .setUseHardwareAcousticEchoCanceler(false)
                 .setUseHardwareNoiseSuppressor(false)
@@ -371,9 +360,8 @@ public class RealtimeClient {
                 .createPeerConnectionFactory();
     }
 
-    // === Signaling SDP ======================================================================
+    // === handshake SDP ======================================================================
 
-    /** Poste l'offre locale (avec candidats ICE) vers OpenAI, une seule fois. */
     private void maybeSendOffer() {
         if (closed || !offerSent.compareAndSet(false, true)) {
             return;
@@ -436,9 +424,8 @@ public class RealtimeClient {
         });
     }
 
-    // === Events OpenAI (data channel) =======================================================
+    // === évènements OpenAI sur data channel) =======================================================
 
-    /** Envoie la configuration de session des l'ouverture du data channel. */
     private void sendSessionUpdate() {
         try {
             JSONObject turnDetection = new JSONObject()
@@ -470,7 +457,7 @@ public class RealtimeClient {
         }
     }
 
-    // fonction report_assessment, la même que promptée au modèle
+    // fonction report_assessment (cf prompt du modèle via function calling)
     private JSONArray buildTools() throws Exception {
         JSONObject props = new JSONObject()
                 .put("keyword", new JSONObject()
@@ -543,8 +530,7 @@ public class RealtimeClient {
         dataChannel.send(new DataChannel.Buffer(ByteBuffer.wrap(bytes), false));
     }
 
-    // Ajoute une image JPEG au contexte de la conversation (event conversation.item.create avec
-    // un contenu input_image en data URL base64)
+    // ajoute une image JPEG au contexte de la conversation (event conversation.item.create avec un contenu input_image en data URL base64)
     public void sendImage(byte[] jpeg) {
         if (jpeg == null || jpeg.length == 0) return;
         if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
@@ -634,7 +620,7 @@ public class RealtimeClient {
         }
     }
 
-    /** Parse les arguments JSON de report_assessment et remonte l'evaluation a l'UI. */
+    // parsing du JSON de report_assessment
     private void handleFunctionCall(JSONObject event) {
         String args = event.optString("arguments", "");
         if (args.isEmpty()) return;
@@ -734,7 +720,7 @@ public class RealtimeClient {
         @Override public void onSetFailure(String error) { notifyError(tag + " : " + error); }
     }
 
-    // === Notifications UI (thread principal) ================================================
+    // vers l'UI
 
     private void notifyStatus(String s) { mainHandler.post(() -> listener.onStatus(s)); }
     private void notifyUser(String s) { mainHandler.post(() -> listener.onUserTranscript(s)); }
