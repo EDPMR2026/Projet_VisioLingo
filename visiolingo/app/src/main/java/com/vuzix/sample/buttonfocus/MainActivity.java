@@ -264,8 +264,7 @@ public class MainActivity extends ComponentActivity implements RealtimeClient.Li
 
     // fonction appelée lorsque l'API renvoit la trame texte (qui contient la langue détectée, et le feedback textuel)
     @Override
-    public void onAssessment(String keyword, int pronunciationScore, int contentScore,
-                             String flagCountryCode) {
+    public void onAssessment(String keyword, int pronunciationScore, int contentScore, String flagCountryCode) {
         hintView.setVisibility(View.GONE);
 
         String flag = flagEmoji(flagCountryCode);
@@ -297,6 +296,8 @@ public class MainActivity extends ComponentActivity implements RealtimeClient.Li
             view.setVisibility(View.GONE);
         }
     }
+
+    // utils
 
     private int scoreColor(int s) {
         if (s <= 4) return 0xFFFF1744;
